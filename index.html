@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Fuel Tracker · Fireblade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#000;
+  --surface:#0a0a0b;
+  --surface2:#111114;
+  --line:rgba(255,255,255,.08);
+  --text:#f4f4f6;
+  --muted:#7d7d88;
+  --hrc-red:#e4002b;
+  --hrc-blue:#0a3d99;
+  --hrc-white:#ffffff;
+  --uni:#ff2d4a;
+  --cbr:#ff8a1f;
+  --ok:#2dff8a;
+  --warn:#ffc933;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --font-d:'Orbitron',system-ui,sans-serif;
+  --font-b:'Rajdhani',system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:#000;margin:0;padding:0}
+body{
+  color:var(--text);font-family:var(--font-b);font-size:17px;font-weight:500;
+  -webkit-user-select:none;user-select:none;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- Ambient background ---------- */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;background:#000;overflow:hidden}
+.bg::before{ /* carbon fibre weave */
+  content:"";position:absolute;inset:0;opacity:.5;
+  background:
+    linear-gradient(27deg,#050505 5px,transparent 5px) 0 5px,
+    linear-gradient(207deg,#050505 5px,transparent 5px) 10px 0,
+    linear-gradient(27deg,#0c0c0e 5px,transparent 5px) 0 10px,
+    linear-gradient(207deg,#0c0c0e 5px,transparent 5px) 10px 5px,
+    linear-gradient(90deg,#070708 10px,transparent 10px),
+    linear-gradient(#0a0a0c 25%,#070708 25%,#070708 50%,transparent 50%,transparent 75%,#0c0c0e 75%,#0c0c0e);
+  background-color:#050506;background-size:20px 20px;
+  mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 75%);
+  -webkit-mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 75%);
+}
+.glow{position:absolute;border-radius:50%;filter:blur(90px);will-change:transform;opacity:.35}
+.glow.r{width:320px;height:320px;background:var(--hrc-red);top:-140px;right:-120px;animation:float1 14s ease-in-out infinite}
+.glow.b{width:300px;height:300px;background:var(--hrc-blue);bottom:-140px;left:-120px;animation:float2 17s ease-in-out infinite}
+@keyframes float1{50%{transform:translate3d(-40px,60px,0)}}
+@keyframes float2{50%{transform:translate3d(50px,-50px,0)}}
+.speed-lines{position:absolute;inset:0;opacity:.07;
+  background:repeating-linear-gradient(105deg,transparent 0 38px,#fff 38px 39px);
+  mask-image:linear-gradient(180deg,transparent,#000 40%,transparent);
+  -webkit-mask-image:linear-gradient(180deg,transparent,#000 40%,transparent);
+  animation:lines 6s linear infinite;will-change:transform}
+@keyframes lines{to{transform:translate3d(-39px,0,0)}}
+
+/* ---------- Tricolor HRC stripe ---------- */
+.tri{display:flex;height:4px;width:100%}
+.tri i{flex:1;display:block;transform-origin:left;animation:stripe .9s var(--ease) both}
+.tri i:nth-child(1){background:var(--hrc-red)}
+.tri i:nth-child(2){background:var(--hrc-white);animation-delay:.08s}
+.tri i:nth-child(3){background:var(--hrc-blue);animation-delay:.16s}
+@keyframes stripe{from{transform:scaleX(0)}}
+
+/* ---------- Screens ---------- */
+.screen{
+  display:none;position:relative;z-index:1;min-height:100vh;min-height:100dvh;
+  padding:calc(20px + env(safe-area-inset-top)) 18px calc(40px + env(safe-area-inset-bottom));
+}
+.screen.active{display:block;animation:screenIn .55s var(--ease) both}
+.screen.leaving{display:block;animation:screenOut .22s ease-in both;pointer-events:none}
+@keyframes screenIn{from{opacity:0;transform:translate3d(0,26px,0) scale(.985);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+@keyframes screenOut{to{opacity:0;transform:translate3d(0,-14px,0) scale(.99)}}
+
+/* stagger children */
+.screen.active .rise{opacity:0;animation:rise .7s var(--ease) forwards}
+.rise:nth-child(1){animation-delay:.05s!important}
+.rise:nth-child(2){animation-delay:.12s!important}
+.rise:nth-child(3){animation-delay:.19s!important}
+.rise:nth-child(4){animation-delay:.26s!important}
+.rise:nth-child(5){animation-delay:.33s!important}
+.rise:nth-child(6){animation-delay:.40s!important}
+@keyframes rise{from{opacity:0;transform:translate3d(0,24px,0)}to{opacity:1;transform:none}}
+
+/* ---------- Header ---------- */
+.brand{display:flex;align-items:center;justify-content:space-between;margin:4px 0 18px}
+.brand .logo{font-family:var(--font-d);font-weight:900;font-size:13px;letter-spacing:4px;color:var(--muted)}
+.brand .logo b{color:var(--hrc-red)}
+.pulse{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:2px;color:var(--ok);text-transform:uppercase}
+.pulse::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 12px var(--ok);animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.3;transform:scale(.7)}}
+h1,h2{font-family:var(--font-d);margin:0;text-transform:uppercase;letter-spacing:2px;line-height:1.15}
+h2{font-size:22px;font-weight:900}
+h2 span{color:var(--hrc-red)}
+.sub{color:var(--muted);margin:6px 0 22px;letter-spacing:.5px}
+
+/* ---------- Cards (angular, fireblade-style) ---------- */
+.card{
+  position:relative;background:linear-gradient(160deg,var(--surface2),var(--surface) 60%);
+  padding:20px;margin-bottom:16px;border:1px solid var(--line);
+  clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px));
+  transition:transform .35s var(--ease),border-color .35s;
+  overflow:hidden;
+}
+.card::after{ /* sheen sweep */
+  content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.07),transparent);
+  transform:skewX(-20deg);animation:sheen 6s ease-in-out infinite;pointer-events:none;
+}
+@keyframes sheen{0%,70%{left:-60%}100%{left:130%}}
+.card:active{transform:scale(.985)}
+.card h3{font-family:var(--font-d);font-size:12px;letter-spacing:3px;margin:0 0 16px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.card.hero{border-color:rgba(228,0,43,.35);box-shadow:0 0 40px -12px rgba(228,0,43,.45)}
+.card.uni{border-left:3px solid var(--uni)}
+.card.cbr{border-left:3px solid var(--cbr)}
+.card.uni h3{color:var(--uni)}
+.card.cbr h3{color:var(--cbr)}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line);font-size:16px;color:#b8b8c2}
+.stat-row:last-child{border:none;padding-bottom:0}
+.stat-row strong{font-family:var(--font-d);font-size:19px;color:var(--text);font-weight:700;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+.hero .stat-row strong{font-size:24px}
+.hero .stat-row:first-of-type strong{color:var(--hrc-red);text-shadow:0 0 18px rgba(228,0,43,.6)}
+
+/* ---------- Buttons ---------- */
+button,.btn{
+  position:relative;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  padding:18px;border:none;color:#fff;font-family:var(--font-d);font-weight:700;font-size:14px;letter-spacing:3px;
+  text-transform:uppercase;cursor:pointer;margin-bottom:12px;overflow:hidden;
+  background:linear-gradient(135deg,#ff1744,var(--hrc-red) 55%,#9b0020);
+  clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+  transition:transform .2s var(--ease),filter .2s;box-shadow:none;
+}
+button:active,.btn:active{transform:scale(.965);filter:brightness(1.2)}
+button.ghost{background:#0e0e11;color:#bbb;border:none;box-shadow:inset 0 0 0 1px var(--line)}
+button.ok{background:linear-gradient(135deg,#19e37a,#0a9d52)}
+button.danger{background:linear-gradient(135deg,#2a2a30,#17171b);color:#ff5a6e}
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.4);transform:scale(0);animation:ripple .6s ease-out forwards;pointer-events:none}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+
+/* CTA with pulsing ring */
+.cta{margin-top:26px;padding:22px;font-size:15px;animation:ctaGlow 2.4s ease-in-out infinite}
+@keyframes ctaGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(228,0,43,0))}50%{filter:drop-shadow(0 0 14px rgba(228,0,43,.7))}}
+
+/* ---------- Bike select ---------- */
+.bike{
+  position:relative;width:100%;text-align:left;padding:26px 22px;margin-bottom:16px;border:none;cursor:pointer;
+  background:linear-gradient(160deg,#121216,#08080a);color:#fff;display:block;
+  clip-path:polygon(0 0,calc(100% - 26px) 0,100% 26px,100% 100%,26px 100%,0 calc(100% - 26px));
+  box-shadow:none;transition:transform .3s var(--ease);
+}
+.bike::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.bike::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 100% 0%,var(--c),transparent 55%);opacity:.18;transition:opacity .3s}
+.bike:active{transform:scale(.97)}
+.bike:active::after{opacity:.4}
+.bike small{display:block;font-family:var(--font-b);letter-spacing:4px;font-size:12px;color:var(--muted);margin-bottom:6px}
+.bike strong{font-family:var(--font-d);font-size:20px;letter-spacing:3px;color:var(--c)}
+.bike .arrow{position:absolute;right:22px;top:50%;transform:translateY(-50%);font-size:26px;color:var(--c);transition:transform .3s var(--ease)}
+.bike:hover .arrow{transform:translate(6px,-50%)}
+
+/* ---------- Capture buttons ---------- */
+.capture-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 22px}
+.cap{
+  position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  padding:34px 10px;cursor:pointer;text-align:center;color:#fff;overflow:hidden;
+  font-family:var(--font-d);font-weight:700;font-size:12px;letter-spacing:2.5px;text-transform:uppercase;
+  clip-path:polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,20px 100%,0 calc(100% - 20px));
+  transition:transform .25s var(--ease);
+}
+.cap:active{transform:scale(.94)}
+.cap svg{width:40px;height:40px;stroke:#fff;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .4s var(--ease)}
+.cap:active svg{transform:scale(1.2) rotate(-6deg)}
+.cap.cam{background:linear-gradient(145deg,#ff1744,#a00020);box-shadow:0 0 30px -8px rgba(228,0,43,.7)}
+.cap.up{background:linear-gradient(145deg,#1456d6,#07245f);box-shadow:0 0 30px -8px rgba(10,61,153,.8)}
+.cap::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,transparent 0 10px,rgba(255,255,255,.05) 10px 11px)}
+.cap input{display:none}
+
+/* ---------- Preview ---------- */
+#preview-container{display:none}
+#preview-container.show{display:block;animation:rise .7s var(--ease) both}
+.viewport{
+  position:relative;overflow:hidden;background:#000;border:1px solid var(--line);margin-bottom:16px;
+  clip-path:polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,20px 100%,0 calc(100% - 20px));
+}
+.viewport img{display:block;width:100%;max-height:260px;object-fit:contain}
+.viewport .corner{position:absolute;width:22px;height:22px;border:2px solid var(--hrc-red)}
+.viewport .tl{top:10px;left:10px;border-right:0;border-bottom:0}
+.viewport .tr{top:10px;right:10px;border-left:0;border-bottom:0}
+.viewport .bl{bottom:10px;left:10px;border-right:0;border-top:0}
+.viewport .br{bottom:10px;right:10px;border-left:0;border-top:0}
+.viewport .scan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--hrc-red),transparent);box-shadow:0 0 18px var(--hrc-red);animation:scan 2.2s ease-in-out infinite}
+@keyframes scan{0%,100%{top:6%}50%{top:94%}}
+.ok-tag{color:var(--ok);font-weight:700;letter-spacing:2px;font-size:14px;margin:0 0 10px;text-transform:uppercase}
+
+/* ---------- Loader (tachometer ring) ---------- */
+.loader-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;text-align:center}
+.tacho{position:relative;width:150px;height:150px;margin:30px 0}
+.tacho svg{width:100%;height:100%;transform:rotate(-90deg)}
+.tacho circle{fill:none;stroke-width:6;stroke-linecap:round}
+.tacho .track{stroke:#16161a}
+.tacho .arc{stroke:var(--hrc-red);stroke-dasharray:140 340;filter:drop-shadow(0 0 8px var(--hrc-red));transform-origin:center;animation:rev 1.4s cubic-bezier(.6,.1,.3,.9) infinite}
+.tacho .arc2{stroke:var(--hrc-blue);stroke-dasharray:60 400;animation:rev 2s linear infinite reverse;transform-origin:center;opacity:.9}
+@keyframes rev{to{transform:rotate(360deg)}}
+.tacho .core{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-weight:900;font-size:13px;letter-spacing:3px;color:var(--hrc-red);animation:blink 1.4s infinite}
+#loading-status{color:var(--muted);letter-spacing:2px;text-transform:uppercase;font-size:14px;transition:opacity .3s}
+
+/* ---------- Form ---------- */
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:2.5px;text-transform:uppercase;font-weight:600}
+input{
+  width:100%;padding:14px 14px;margin-bottom:16px;background:#050506;border:1px solid #1d1d22;border-bottom:2px solid #26262c;
+  color:#fff;font-family:var(--font-b);font-size:18px;font-weight:600;outline:none;border-radius:0;
+  transition:border-color .3s,box-shadow .3s,background .3s;
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%);
+}
+input:focus{border-color:var(--hrc-red);background:#0b0b0d;box-shadow:0 8px 24px -14px var(--hrc-red)}
+input[readonly]{color:var(--muted)}
+.flex-row{display:flex;gap:12px}
+.flex-row>div{flex:1;min-width:0}
+#math-warning{display:none;padding:12px 14px;margin-bottom:16px;border-left:3px solid #ff3b30;background:rgba(255,59,48,.1);font-size:15px;animation:shake .5s}
+@keyframes shake{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+#conf-confidence{font-family:var(--font-d);font-weight:700;letter-spacing:2px;font-size:13px;margin:4px 0 8px}
+.bar{height:4px;background:#17171b;margin-bottom:10px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width 1s var(--ease)}
+#conf-notes{font-size:15px;color:var(--warn);margin:0}
+
+/* ---------- Toast ---------- */
+#toast{
+  position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));z-index:99;
+  transform:translate3d(-50%,140%,0);opacity:0;max-width:88%;
+  background:#0d0d10;border:1px solid var(--line);border-left:3px solid var(--ok);color:#fff;
+  padding:14px 20px;font-size:15px;letter-spacing:.5px;transition:transform .5s var(--ease),opacity .4s;
+}
+#toast.err{border-left-color:#ff3b30}
+#toast.show{transform:translate3d(-50%,0,0);opacity:1}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#09090b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+</head>
+<body>
+
+<div class="bg"><div class="glow r"></div><div class="glow b"></div><div class="speed-lines"></div></div>
+
+<!-- DASHBOARD -->
+<div id="dashboard-screen" class="screen active">
+  <div class="tri rise" style="margin-bottom:18px"><i></i><i></i><i></i></div>
+  <div class="brand rise"><span class="logo">FIRE<b>BLADE</b> · LOG</span><span class="pulse">Live</span></div>
+  <h2 class="rise">My Fuel <span>Tracker</span></h2>
+  <p class="sub rise">Every litre. Every ride.</p>
+
+  <div class="card hero rise">
+    <h3>Overall Summary</h3>
+    <div class="stat-row"><span>Total Spend</span><strong>₹<span id="tot-amount" data-dec="2">0.00</span></strong></div>
+    <div class="stat-row"><span>Total Fuel</span><strong><span id="tot-litres" data-dec="2">0.00</span> L</strong></div>
+  </div>
+  <div class="card uni rise">
+    <h3>Honda Unicorn</h3>
+    <div class="stat-row"><span>Spend</span><strong>₹<span id="uni-amount" data-dec="2">0.00</span></strong></div>
+    <div class="stat-row"><span>Litres</span><strong><span id="uni-litres" data-dec="2">0.00</span> L</strong></div>
+  </div>
+  <div class="card cbr rise">
+    <h3>Honda CBR 250R</h3>
+    <div class="stat-row"><span>Spend</span><strong>₹<span id="cbr-amount" data-dec="2">0.00</span></strong></div>
+    <div class="stat-row"><span>Litres</span><strong><span id="cbr-litres" data-dec="2">0.00</span> L</strong></div>
+  </div>
+  <button class="cta rise" onclick="showScreen('bike-select-screen')">＋ Add Fuel Entry</button>
+</div>
+
+<!-- BIKE SELECTION -->
+<div id="bike-select-screen" class="screen">
+  <div class="tri rise" style="margin-bottom:18px"><i></i><i></i><i></i></div>
+  <h2 class="rise">Select <span>Machine</span></h2>
+  <p class="sub rise">Which bike did you refuel?</p>
+  <button class="bike rise" style="--c:var(--uni)" onclick="selectBike('Honda Unicorn')"><small>COMMUTER</small><strong>HONDA UNICORN</strong><span class="arrow">›</span></button>
+  <button class="bike rise" style="--c:var(--cbr)" onclick="selectBike('Honda CBR 250R')"><small>SPORT</small><strong>HONDA CBR 250R</strong><span class="arrow">›</span></button>
+  <button class="ghost rise" style="margin-top:26px" onclick="showScreen('dashboard-screen')">Cancel</button>
+</div>
+
+<!-- CAPTURE -->
+<div id="capture-screen" class="screen">
+  <div class="tri rise" style="margin-bottom:18px"><i></i><i></i><i></i></div>
+  <h2 class="rise">Capture <span>Receipt</span></h2>
+  <p class="sub rise">Logging for: <strong id="selected-bike-label" style="color:#fff"></strong></p>
+
+  <div class="capture-grid rise">
+    <!-- Camera button -->
+    <label class="cap cam">
+      <svg viewBox="0 0 24 24"><path d="M3 8h3l2-3h8l2 3h3v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      Camera
+      <input id="camera-input" type="file" accept="image/*" capture="environment" onchange="handleImageUpload(event, 'fuel')">
+    </label>
+    <!-- Upload button -->
+    <label class="cap up">
+      <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v4h16v-4"/></svg>
+      Upload
+      <input id="gallery-input" type="file" accept="image/*" onchange="handleImageUpload(event, 'fuel')">
+    </label>
+  </div>
+
+  <div id="preview-container">
+    <p class="ok-tag">● Image locked in</p>
+    <div class="viewport">
+      <img id="image-preview" alt="Preview">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <span class="scan"></span>
+    </div>
+    <button id="extract-btn" class="ok" onclick="requestLocationAndExtract()">Analyse Receipt / Meter</button>
+  </div>
+
+  <div class="card rise" style="margin-top:18px">
+    <h3>UPI Payment Screenshot (Optional)</h3>
+    <p class="sub" style="margin:0 0 12px">Upload your Google Pay, PhonePe, Paytm or bank payment confirmation.</p>
+    <label class="cap up" style="min-height:90px;padding:18px">
+      <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v4h16v-4"/></svg>
+      Upload UPI Screenshot
+      <input id="upi-input" type="file" accept="image/jpeg,image/png,image/webp" onchange="handleImageUpload(event, 'upi')">
+    </label>
+    <div id="upi-preview-container" style="display:none">
+      <p class="ok-tag">● UPI image selected</p>
+      <div class="viewport"><img id="upi-image-preview" alt="UPI payment screenshot"></div>
+      <button class="ghost" type="button" onclick="clearUpiImage()">Remove UPI Image</button>
+    </div>
+  </div>
+
+  <button class="ghost" style="margin-top:14px" onclick="showScreen('bike-select-screen')">Back</button>
+</div>
+
+<!-- LOADING -->
+<div id="loading-screen" class="screen">
+  <div class="loader-wrap">
+    <h2>Processing</h2>
+    <div class="tacho">
+      <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44"/><circle class="arc2" cx="50" cy="50" r="36"/><circle class="arc" cx="50" cy="50" r="44"/></svg>
+      <div class="core">AI</div>
+    </div>
+    <p id="loading-status">Extracting GPS and AI data...</p>
+  </div>
+</div>
+
+<!-- CONFIRMATION -->
+<div id="confirmation-screen" class="screen">
+  <div class="tri rise" style="margin-bottom:18px"><i></i><i></i><i></i></div>
+  <h2 class="rise">Confirm <span>Transaction</span></h2>
+  <p class="sub rise">Check the details before saving.</p>
+  <div class="card rise">
+    <label>Motorcycle</label>
+    <input id="conf-bike" type="text" readonly>
+
+    <label>Petrol Station Name</label>
+    <input id="conf-station" type="text">
+
+    <label>Area / Locality</label>
+    <input id="conf-area" type="text">
+
+    <div class="flex-row">
+      <div><label>Amount (₹)</label><input id="conf-amount" type="number" step="0.01" inputmode="decimal" oninput="validateMath()"></div>
+      <div><label>Quantity (L)</label><input id="conf-litres" type="number" step="0.01" inputmode="decimal" oninput="validateMath()"></div>
+    </div>
+
+    <label>Rate Per Litre (₹)</label>
+    <input id="conf-rate" type="number" step="0.01" inputmode="decimal" oninput="validateMath()">
+
+    <div id="math-warning"></div>
+
+    <div class="flex-row">
+      <div><label>Date (editable)</label><input id="conf-date" type="date"></div>
+      <div><label>Time (editable)</label><input id="conf-time" type="time"></div>
+    </div>
+
+    <h3 style="margin-top:22px">UPI Payment Details</h3>
+    <label>UPI App</label><input id="conf-upi-app" type="text" placeholder="Google Pay / PhonePe / Paytm">
+    <label>UPI Transaction ID</label><input id="conf-upi-txn" type="text" placeholder="Leave blank if not visible">
+    <label>UTR / RRN</label><input id="conf-utr" type="text" placeholder="Leave blank if not visible">
+    <div class="flex-row">
+      <div><label>UPI Amount (₹)</label><input id="conf-upi-amount" type="number" step="0.01" inputmode="decimal"></div>
+      <div><label>Payment Status</label><input id="conf-upi-status" type="text" placeholder="SUCCESS / FAILED / PENDING"></div>
+    </div>
+    <div class="flex-row">
+      <div><label>Payment Date (if shown)</label><input id="conf-upi-date" type="text"></div>
+      <div><label>Payment Time (if shown)</label><input id="conf-upi-time" type="text"></div>
+    </div>
+    <p id="conf-upi-match" style="color:var(--warn);margin:4px 0 12px"></p>
+    <p id="conf-upi-notes" style="color:var(--muted);margin:4px 0 12px"></p>
+    <p id="conf-confidence"></p>
+    <div class="bar"><i id="conf-bar"></i></div>
+    <p id="conf-notes"></p>
+  </div>
+  <button class="ok rise" onclick="saveToSheets()">Confirm and Save</button>
+  <button class="danger rise" onclick="showScreen('dashboard-screen')">Reject</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// PWA bridge: set this to your deployed Google Apps Script Web App URL ending in /exec.
+const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyKi78diBrLxWUEQhmEvtGIjeWclx-tjEUVLxhwQW4KhGyCQxwbeDMfBu3ryG4B_zIC2g/exec';
+const pendingApiRequests = new Map();
+let apiRequestCounter = 0;
+window.addEventListener('message', (event) => {
+  let msg = event.data;
+  if (typeof msg === 'string') { try { msg = JSON.parse(msg); } catch (_) { return; } }
+  if (!msg || !msg.requestId || !pendingApiRequests.has(msg.requestId)) return;
+  const handlers = pendingApiRequests.get(msg.requestId);
+  pendingApiRequests.delete(msg.requestId);
+  if (msg.success) handlers.resolve(msg.data);
+  else handlers.reject(new Error(msg.error || 'Google Apps Script request failed.'));
+});
+function apiGet(action) {
+  return new Promise((resolve, reject) => {
+    if (!GAS_API_URL.startsWith('https://script.google.com/macros/s/')) {
+      reject(new Error('Set GAS_API_URL in Index.html to your deployed Apps Script /exec URL.')); return;
+    }
+    const callback = 'fuelJsonp_' + Date.now() + '_' + (++apiRequestCounter);
+    const script = document.createElement('script');
+    const timer = setTimeout(() => { cleanup(); reject(new Error('Apps Script request timed out.')); }, 30000);
+    function cleanup(){ clearTimeout(timer); delete window[callback]; script.remove(); }
+    window[callback] = (data) => { cleanup(); data && data.success ? resolve(data.data) : reject(new Error(data && data.error || 'Dashboard request failed.')); };
+    script.onerror = () => { cleanup(); reject(new Error('Could not reach Apps Script. Check deployment access and URL.')); };
+    script.src = GAS_API_URL + '?api=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callback) + '&_=' + Date.now();
+    document.head.appendChild(script);
+  });
+}
+function apiPost(action, payload) {
+  return new Promise((resolve, reject) => {
+    if (!GAS_API_URL.startsWith('https://script.google.com/macros/s/')) {
+      reject(new Error('Set GAS_API_URL in Index.html to your deployed Apps Script /exec URL.')); return;
+    }
+    const requestId = 'fuelReq_' + Date.now() + '_' + (++apiRequestCounter);
+    pendingApiRequests.set(requestId, {resolve, reject});
+    const iframe = document.createElement('iframe');
+    iframe.name = requestId; iframe.style.display = 'none'; document.body.appendChild(iframe);
+    const form = document.createElement('form');
+    form.method = 'POST'; form.action = GAS_API_URL + '?api=' + encodeURIComponent(action);
+    form.target = requestId; form.style.display = 'none';
+    const field = document.createElement('input'); field.type='hidden'; field.name='payload'; field.value=JSON.stringify({requestId, data:payload});
+    form.appendChild(field); document.body.appendChild(form);
+    const timer=setTimeout(()=>{pendingApiRequests.delete(requestId);reject(new Error('Apps Script request timed out.'));iframe.remove();form.remove();},120000);
+    const originalResolve=resolve, originalReject=reject;
+    pendingApiRequests.set(requestId,{resolve:(v)=>{clearTimeout(timer);iframe.remove();form.remove();originalResolve(v);},reject:(e)=>{clearTimeout(timer);iframe.remove();form.remove();originalReject(e);}});
+    form.submit();
+  });
+}
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(err => console.warn('Service worker registration failed:', err)));
+</script>
+
+<script>
+let currentImageBase64 = "";
+let currentImageHash = "";
+let currentUpiBase64 = "";
+let currentUpiHash = "";
+let currentUpiData = {};
+let currentBike = "";
+let currentLocation = { lat: null, lon: null };
+let currentScreen = 'dashboard-screen';
+let switching = false;
+
+window.onload = loadDashboard;
+
+/* ---------- helpers ---------- */
+function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms||12); }catch(e){} }
+
+function toast(msg, isErr){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = (isErr ? 'err ' : '') + 'show';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+/* Ripple on every button / label */
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('button, .cap');
+  if (!el) return;
+  buzz(10);
+  const r = el.getBoundingClientRect();
+  const size = Math.max(r.width, r.height);
+  const s = document.createElement('span');
+  s.className = 'ripple';
+  s.style.width = s.style.height = size + 'px';
+  s.style.left = (e.clientX - r.left - size/2) + 'px';
+  s.style.top = (e.clientY - r.top - size/2) + 'px';
+  el.appendChild(s);
+  setTimeout(() => s.remove(), 650);
+}, { passive: true });
+
+/* Smooth count-up */
+function countUp(id, to){
+  const el = document.getElementById(id);
+  const dec = +el.dataset.dec || 0;
+  const target = parseFloat(String(to).replace(/,/g,'')) || 0;
+  const dur = 1100, t0 = performance.now();
+  (function frame(now){
+    const p = Math.min((now - t0) / dur, 1);
+    const eased = 1 - Math.pow(1 - p, 4);
+    el.textContent = (target * eased).toLocaleString('en-IN', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    if (p < 1) requestAnimationFrame(frame);
+  })(t0);
+}
+
+/* ---------- navigation with exit/enter animation ---------- */
+function showScreen(screenId){
+  if (switching || screenId === currentScreen) {
+    if (screenId === currentScreen && screenId === 'dashboard-screen') loadDashboard();
+    return;
+  }
+  switching = true;
+  const from = document.getElementById(currentScreen);
+  const to = document.getElementById(screenId);
+  from.classList.remove('active');
+  from.classList.add('leaving');
+  setTimeout(() => {
+    from.classList.remove('leaving');
+    to.classList.add('active');
+    currentScreen = screenId;
+    window.scrollTo(0, 0);
+    switching = false;
+    if (screenId === 'dashboard-screen') loadDashboard();
+  }, 220);
+}
+
+/* ---------- dashboard ---------- */
+function loadDashboard(){
+  apiGet('dashboard').then((data) => {
+    countUp('tot-amount', data.overall.totalAmount);
+    countUp('tot-litres', data.overall.totalLitres);
+    countUp('uni-amount', data.unicorn.totalAmount);
+    countUp('uni-litres', data.unicorn.totalLitres);
+    countUp('cbr-amount', data.cbr.totalAmount);
+    countUp('cbr-litres', data.cbr.totalLitres);
+  }).catch(err => toast('Dashboard: ' + err.message, true));
+}
+
+function selectBike(bike){
+  currentBike = bike;
+  document.getElementById('selected-bike-label').innerText = bike;
+  document.getElementById('preview-container').classList.remove('show');
+  currentImageBase64 = "";
+  currentImageHash = "";
+  currentUpiBase64 = "";
+  currentUpiHash = "";
+  currentUpiData = {};
+  document.getElementById('upi-preview-container').style.display = 'none';
+  document.getElementById('preview-container').classList.remove('show');
+  showScreen('capture-screen');
+}
+
+/* ---------- image ---------- */
+async function hashImage(dataUrl){
+  const data = new TextEncoder().encode(dataUrl);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function handleImageUpload(event, kind){
+  const input=event.target, file=input.files[0];
+  if(!file)return;
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('Use a JPG, PNG or WEBP image.',true);input.value='';return;}
+  if(file.size>8*1024*1024){toast('Image is larger than 8 MB. Compress it first.',true);input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    if(kind==='upi'){
+      currentUpiBase64=e.target.result;currentUpiHash=await hashImage(currentUpiBase64);
+      document.getElementById('upi-image-preview').src=currentUpiBase64;
+      document.getElementById('upi-preview-container').style.display='block';
+      toast('UPI screenshot added.');
+    }else{
+      currentImageBase64=e.target.result;document.getElementById('image-preview').src=currentImageBase64;
+      const pc=document.getElementById('preview-container');
+      pc.classList.remove('show');void pc.offsetWidth;pc.classList.add('show');
+      currentImageHash=await hashImage(currentImageBase64);
+      setTimeout(()=>pc.scrollIntoView({behavior:'smooth',block:'center'}),120);
+    }
+    input.value='';
+  };
+  reader.readAsDataURL(file);
+}
+function clearUpiImage(){
+  currentUpiBase64='';currentUpiHash='';currentUpiData={};
+  document.getElementById('upi-image-preview').src='';
+  document.getElementById('upi-preview-container').style.display='none';
+  document.getElementById('upi-input').value='';
+  toast('UPI screenshot removed.');
+}
+
+/* ---------- extraction flow ---------- */
+function setStatus(txt){
+  const el = document.getElementById('loading-status');
+  el.style.opacity = 0;
+  setTimeout(() => { el.innerText = txt; el.style.opacity = 1; }, 180);
+}
+
+function requestLocationAndExtract(){
+  showScreen('loading-screen');
+  setTimeout(() => setStatus('Getting GPS location...'), 260);
+
+  if (navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { currentLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude }; callBackendExtraction(); },
+      ()    => { currentLocation = { lat: null, lon: null }; callBackendExtraction(); },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  } else {
+    callBackendExtraction();
+  }
+}
+
+function callBackendExtraction(){
+  if(!currentImageBase64){toast('Upload the fuel receipt first.',true);showScreen('capture-screen');return;}
+  setStatus(currentUpiBase64?'Analysing fuel and UPI images with Groq...':'AI analysing fuel image with Groq...');
+  apiPost('extract', {fuelImage:currentImageBase64, upiImage:currentUpiBase64, lat:currentLocation.lat, lon:currentLocation.lon})
+    .then(displayConfirmation)
+    .catch((err)=>{toast('Extraction failed: '+err.message,true);showScreen('capture-screen');});
+}
+
+function displayConfirmation(data){
+  const fuel=data.fuel||data, upi=data.upi||{};
+  currentUpiData=upi;
+  document.getElementById('conf-bike').value=currentBike;
+  document.getElementById('conf-station').value=fuel.stationName||'';
+  document.getElementById('conf-area').value=fuel.area||'';
+  document.getElementById('conf-amount').value=fuel.amount||'';
+  document.getElementById('conf-litres').value=fuel.litres||'';
+  document.getElementById('conf-rate').value=fuel.rate||'';
+  const now=data.currentIST||{};
+  document.getElementById('conf-date').value=now.date||fuel.date||'';
+  document.getElementById('conf-time').value=now.time||fuel.time||'';
+  document.getElementById('conf-upi-app').value=upi.app||'';
+  document.getElementById('conf-upi-txn').value=upi.transactionId||'';
+  document.getElementById('conf-utr').value=upi.utrRrn||'';
+  document.getElementById('conf-upi-amount').value=upi.amount||'';
+  document.getElementById('conf-upi-status').value=upi.status||'';
+  document.getElementById('conf-upi-date').value=upi.date||'';
+  document.getElementById('conf-upi-time').value=upi.time||'';
+  document.getElementById('conf-upi-match').innerText='UPI comparison: '+(data.upiMatchStatus||'Not checked');
+  document.getElementById('conf-upi-notes').innerText=upi.notes||'';
+  const conf=Number(fuel.confidence)||0, el=document.getElementById('conf-confidence');
+  el.innerText=`AI CONFIDENCE: ${conf}%`;
+  const col=conf<80?'#ffc933':'#2dff8a';el.style.color=col;el.dataset.score=conf;
+  const bar=document.getElementById('conf-bar');bar.style.background=col;bar.style.width='0';
+  document.getElementById('conf-notes').innerText=[fuel.notes,'Date/time default: current IST. Edit if needed.'].filter(Boolean).join(' ');
+  currentImageHash=data.imageHash||fuel.imageHash||currentImageHash;
+  currentUpiHash=upi.imageHash||currentUpiHash;
+  validateMath();showScreen('confirmation-screen');
+  setTimeout(()=>{bar.style.width=conf+'%';},700);
+}
+
+function validateMath(){
+  const amount = parseFloat(document.getElementById('conf-amount').value);
+  const litres = parseFloat(document.getElementById('conf-litres').value);
+  const rate   = parseFloat(document.getElementById('conf-rate').value);
+  const w = document.getElementById('math-warning');
+
+  if (amount && litres && rate){
+    const expected = (litres * rate).toFixed(2);
+    if (Math.abs(expected - amount) > 1.5){
+      const wasHidden = w.style.display !== 'block';
+      w.innerHTML = `<strong>⚠ Discrepancy:</strong> Calculated total (₹${expected}) differs from entered amount (₹${amount}).`;
+      w.style.display = 'block';
+      if (wasHidden){ w.style.animation = 'none'; void w.offsetWidth; w.style.animation = ''; buzz(40); }
+      return;
+    }
+  }
+  w.style.display = 'none';
+}
+
+function saveToSheets(){
+  const amount=Number(document.getElementById('conf-amount').value);
+  const litres=Number(document.getElementById('conf-litres').value);
+  const rate=Number(document.getElementById('conf-rate').value);
+  if(!(amount>0&&litres>0&&rate>0)){toast('Check amount, litres and rate before saving.',true);return;}
+  const upiAmount=Number(document.getElementById('conf-upi-amount').value)||0;
+  let match='Not checked';
+  if(currentUpiBase64&&upiAmount>0)match=Math.abs(upiAmount-amount)<=1?'Amount matches':'Amount mismatch - verify';
+  else if(currentUpiBase64)match='Unable to compare - verify manually';
+  showScreen('loading-screen');setTimeout(()=>setStatus('Saving securely to Google Sheets...'),260);
+  const payload={
+    motorcycle:currentBike,stationName:document.getElementById('conf-station').value,
+    area:document.getElementById('conf-area').value,amount:amount,litres:litres,rate:rate,
+    date:document.getElementById('conf-date').value,time:document.getElementById('conf-time').value,
+    confidence:document.getElementById('conf-confidence').dataset.score,imageHash:currentImageHash,
+    gpsStatus:(currentLocation.lat!==null&&currentLocation.lat!==undefined)?'Confirmed':'Manual',
+    upiTransactionId:document.getElementById('conf-upi-txn').value,
+    utrRrn:document.getElementById('conf-utr').value,upiApp:document.getElementById('conf-upi-app').value,
+    upiStatus:document.getElementById('conf-upi-status').value,
+    upiDate:document.getElementById('conf-upi-date').value,upiTime:document.getElementById('conf-upi-time').value,
+    upiAmount:upiAmount,upiMatchStatus:match,upiImageHash:currentUpiHash
+  };
+  apiPost('save', payload).then((res)=>{
+    buzz([30,40,30]);toast('Saved ✓ Ref: '+res.transactionId);
+    currentImageBase64='';currentImageHash='';currentUpiBase64='';currentUpiHash='';currentUpiData={};
+    document.getElementById('preview-container').classList.remove('show');
+    document.getElementById('upi-preview-container').style.display='none';
+    showScreen('dashboard-screen');
+  }).catch((err)=>{toast(err.message,true);showScreen('confirmation-screen');});
+}
+</script>
+</body>
+</html>
